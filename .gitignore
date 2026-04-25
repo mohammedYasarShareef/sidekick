@@ -1,0 +1,17 @@
+# Build artifacts
+build/
+dist/
+
+# Runtime secrets & data — NEVER commit these
+*.key
+*_sk.bin
+*_pk.bin
+sidekick_logs.enc
+sidekick_sessions.json
+sidekick_state.json
+sidekick_vault/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo

@@ -903,7 +903,8 @@ class SecurityEngine:
                 self.store.save(rec)
                 self.cb("new_process", {"record": rec, "message": msg})
 
-            except (psutil.NoSuchProcess, psutil.AccessDenied, Exception): continue
+            except Exception:
+                continue
 
         with self._lock:
             for pid, rec in list(self.records.items()):
@@ -1019,6 +1020,7 @@ class SidekickApp(ctk.CTk):
             ("Score Detail",  self._show_score_detail),
             ("MITM Log",      self._show_mitm_log),
             ("Kyber Vault",   self._open_vault),
+            ("Export CSV",    self._export_history_csv),
             ("Clear Dead",    self._clear_dead),
         ]
         for i,(t,cmd) in enumerate(buttons):
@@ -1323,6 +1325,27 @@ class SidekickApp(ctk.CTk):
         if not self._rows: self._empty_lbl.pack(pady=30)
         self._tlog(f"Cleared {len(dead)} terminated process(es).", "dim")
 
+    def _export_history_csv(self):
+        import csv
+        sessions = self.store.all_desc()
+        if not sessions:
+            self._tlog("No session history to export.", "warn")
+            return
+        path = BASE_DIR / f"sidekick_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        try:
+            with open(path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.writer(f)
+                writer.writerow(["Agent","Tier","PID","Started","Ended","End Reason","Final Score","Score Label"])
+                for s in sessions:
+                    writer.writerow([
+                        s.get("label") or s.get("name","?"), s.get("tier"),
+                        s.get("pid"), s.get("started"), s.get("ended",""),
+                        s.get("end_reason",""), s.get("score"), s.get("score_label"),
+                    ])
+            self._tlog(f"Exported session history → {path.name}", "info")
+        except Exception as e:
+            self._tlog(f"Export failed: {e}", "alert")
+
     def _tlog(self, msg, tag="info"):
         self._term.configure(state="normal")
         ts = datetime.now().strftime("%H:%M:%S")
@@ -1346,7 +1369,7 @@ class SidekickApp(ctk.CTk):
 
     def _show_score_detail(self):
         win = ctk.CTkToplevel(self); win.title("Safety Score Breakdown")
-        win.geometry("720,540"); win.configure(fg_color=BG_DARK)
+        win.configure(fg_color=BG_DARK)
         win.geometry("720x540")
         ctk.CTkLabel(win, text="SAFETY SCORE BREAKDOWN",
                      font=("Consolas",10,"bold"), text_color=ACCENT).pack(padx=20,pady=(16,6),anchor="w")
